@@ -1,0 +1,22 @@
+import markdown.egl
+
+extern func free(any *)
+
+func main(int argc, byte** argv) : int
+{
+    Stream^ text
+
+    if argc == 1
+        text = new StringStream('## He*l*lo!\nThis **is** a *test*\n')
+    else
+        text = new FileStream(argv[1])
+
+    var md = new Markdown(text)
+    
+    md.parse()
+    var out = md.render()
+    puts out
+    free(out)
+    
+    return 0
+}

@@ -1,0 +1,144 @@
+import streams.egl
+import stringbuilder.egl
+import trees.egl
+
+export
+class Markdown
+{
+    Stream^ stream
+    Tree^ root
+    
+    init(Stream^ stream)
+    {
+        self.stream = stream
+        self.root = new BasicTree()
+    }
+    
+    func render() : byte*
+    {
+        var sb = new StringBuilder()
+        renderTreeList(self.root, sb)
+        return sb.transfer()
+    }
+
+    func parse()
+    {
+        var curTree = self.root
+        for self.stream.peek()
+        {
+            var t = self.parseBlock()
+
+            if t
+            {
+                curTree.setNext(t)
+                curTree = t
+            }
+        }
+    }
+    
+    func parseBlock() : Tree^
+    {
+        switch self.stream.peek()
+        {
+            case `#`
+                return self.parseHeader()
+            case 10
+                self.stream.next()
+                return nil
+            default
+                return self.parseParagraph()
+        }
+
+        return nil
+    }
+
+    func parseParagraph() : Tree^
+    {
+        var headTree = new BasicTree()
+        Tree^ curTree = headTree
+
+        for !breaks_block(self.stream.peek())
+        {
+            var t = self.consumeText(10)
+            curTree.setNext(t)
+            t.setNext(new TextTree(' ', yes))
+            curTree = t.next()
+        }
+
+        return new ParagraphTree(headTree.next())
+    }
+
+    func parseHeader() : Tree^
+    {
+        int ct = 0
+        for self.stream.next() == `#`
+        {
+            ct += 1
+        }
+        
+        return new HeaderTree(self.consumeText(10), ct)
+    }
+    
+    func consumeText(byte delim) : Tree^
+    {
+        Tree^ curTree = new BasicTree()
+        var headTree = curTree
+        var sb = new StringBuilder()
+        for self.stream.peek() != delim
+        {
+            var b = self.stream.next()
+            switch b
+            {
+                case `*`
+                    var flush = new TextTree(sb.transfer(), no)
+                    curTree.setNext(flush)
+                    
+                    Tree^ t
+                    if self.stream.peek() == `*`
+                        t = self.parseBold()
+                    else
+                        t = self.parseItalic()
+                    flush.setNext(t)
+                    curTree = t
+                default
+                    sb.appByte(b)
+            }
+        }
+       
+        self.stream.next()
+
+        if sb.preview()
+            curTree.setNext(new TextTree(sb.transfer(), no))
+
+        return new SubTree(headTree.next())
+    }
+    
+    func parseBold() : Tree^
+    {
+        self.stream.next()
+        var t = self.consumeText(`*`)
+        self.stream.next()
+        return new FormatTree(t, FormatType.Bold)
+    }
+    
+    func parseItalic() : Tree^
+    {
+        var t = self.consumeText(`*`)
+        return new FormatTree(t, FormatType.Italic)
+    }
+}
+
+func breaks_block(byte c) : bool
+{
+    switch int@c -- TODO: This is a compiler bug
+    {
+        case 0;   fallthrough
+        case `#`; fallthrough
+        case `*`; fallthrough
+        case 10
+            return yes
+    }
+
+    return c >= `1` && c <= `0`
+}
+

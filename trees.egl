@@ -1,0 +1,226 @@
+import stringbuilder.egl
+
+export (class) '*'
+
+extern func strdup(byte*) : byte*
+extern func free(any*)
+extern func sprintf(byte*, byte*...) : int
+extern func printf(byte*...) : int
+
+export
+interface Tree
+{
+    -- Render will return an allocated buffer that
+    -- should be freed by the caller
+    func render(StringBuilder^)
+    
+    -- Treat tree nodes as a linked list for trees
+    -- at the same level
+    func next() : Tree^
+    func setNext(Tree^)
+}
+
+class BasicTree (Tree)
+{
+    Tree^ n
+    
+    func next() : Tree^
+    {
+        return self.n
+    }
+    
+    func setNext(Tree^ n)
+    {
+        self.n = n
+    }
+    
+    func render(StringBuilder^ sb)
+    {
+        sb
+    }
+}
+
+class SubTree (Tree)
+{
+    Tree^ n
+    Tree^ content
+
+    init(Tree^ content)
+    {
+        self.content = content
+    }
+
+    func next() : Tree^
+    {
+        return self.n
+    }
+
+    func setNext(Tree^ n)
+    {
+        self.n = n
+    }
+
+    func render(StringBuilder^ sb)
+    {
+        renderTreeList(self.content, sb)
+    }
+}
+
+class TextTree (Tree)
+{
+    Tree^ n
+    byte* buff 
+    
+    init(byte* buff, bool copy)
+    {
+        self.buff = copy ? strdup(buff) : buff
+        -- printf('%p %s\n', self, buff)
+    }
+    
+    destruct()
+    {
+        free(self.buff)
+    }
+    
+    func next() : Tree^
+    {
+        return self.n
+    }
+    
+    func setNext(Tree^ n)
+    {
+        self.n = n
+    }
+    
+    func render(StringBuilder^ sb)
+    {
+        sb.appStr(self.buff)
+    }
+}
+
+class HeaderTree (Tree)
+{
+    Tree^ content
+    int level
+    Tree^ n
+    
+    init(Tree^ content, int level)
+    {
+        self.content = content
+        self.level = level
+    }
+    
+    func render(StringBuilder^ sb)
+    {
+        byte[5] front
+        byte[6] back
+        
+        sprintf(front, '<h%d>', self.level)
+        sprintf(back, '</h%d>', self.level)
+        
+        sb.appStr(front)
+        renderTreeList(self.content, sb)
+        sb.appStr(back)
+    }
+    
+    func next() : Tree^
+    {
+        return self.n
+    }
+    
+    func setNext(Tree^ n)
+    {
+        self.n = n
+    }
+}
+
+class ParagraphTree (Tree)
+{
+    Tree^ content
+    Tree^ n
+
+    init(Tree^ content)
+    {
+        self.content = content
+    }
+
+    func render(StringBuilder^ sb)
+    {
+        sb.appStr('<p>')
+        -- self.content.next().next().next().render(sb)
+        renderTreeList(self.content, sb)
+        sb.appStr('</p>\n')
+    }
+
+    func next() : Tree^
+    {
+        return self.n
+    }
+    
+    func setNext(Tree^ n)
+    {
+        self.n = n
+    }
+}
+
+export
+enum FormatType
+{
+    Bold
+    Italic
+}
+
+class FormatTree (Tree)
+{
+    Tree^ content
+    FormatType ft
+    Tree^ n
+    
+    init(Tree^ content, FormatType ft)
+    {
+        self.content = content
+        self.ft = ft
+    }
+    
+    func render(StringBuilder^ sb)
+    {
+        byte f 
+        switch self.ft
+        {
+            case Bold
+                f = `b`
+            case Italic
+                f = `i`
+        }
+        
+        byte[4] front
+        byte[5] back
+        
+        sprintf(front, '<%c>', int@f)
+        sprintf(back, '</%c>', int@f)
+        
+        sb.appStr(front)
+        renderTreeList(self.content, sb)
+        sb.appStr(back)
+    }
+    
+    func next() : Tree^
+    {
+        return self.n
+    }
+    
+    func setNext(Tree^ n)
+    {
+        self.n = n
+    }
+}
+
+export
+func renderTreeList(Tree^ t, StringBuilder^ sb)
+{
+    for t; t; t = t.next()
+    {
+        t.render(sb)
+    }
+}
+

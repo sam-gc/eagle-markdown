@@ -1,0 +1,72 @@
+extern func realloc(any*, long) : any*
+extern func free(any*)
+extern func strlen(byte*) : long
+extern func memcpy(byte*, byte*, long) : any*
+
+static int GrowLength = 100
+
+export
+class StringBuilder
+{
+    byte* buff
+    long len
+    long allocated
+    long idx
+    
+    init()
+    {
+        self.len = self.allocated = self.idx = 0
+        self.buff = nil
+    }
+    
+    destruct()
+    {
+        if self.buff
+            free(self.buff)
+    }
+    
+    func transfer() : byte*
+    {
+        var b = self.buff
+        self.buff = nil
+        
+        self.len = self.allocated = self.idx = 0
+        
+        return b
+    }
+    
+    func preview() : byte*
+    {
+        return self.buff
+    }
+    
+    func at(int i) : byte
+    {
+        return self.buff[i]
+    }
+    
+    func appStr(byte* str) : StringBuilder^
+    {
+        var l = strlen(str)
+        if l + self.len >= self.allocated
+        {
+            self.allocated += GrowLength + l
+            self.buff = realloc(self.buff, self.allocated)
+        }
+        
+        self.len += l
+        memcpy(self.buff + self.idx, str, l + 1)
+        self.idx += l
+        
+        return self
+    }
+    
+    func appByte(byte c) : StringBuilder^
+    {
+        byte[2] tmp
+        tmp[0] = c
+        tmp[1] = 0
+        
+        return self.appStr(tmp)
+    }
+}

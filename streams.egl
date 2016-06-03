@@ -1,0 +1,89 @@
+export (interface) '*'
+export (class)     '*'
+
+export typedef any FILE
+
+extern func fopen(byte*, byte*) : FILE*
+extern func fclose(FILE*)
+extern func fread(byte*, int, int, FILE*)
+extern func strdup(byte*) : byte*
+extern func free(any*)
+
+func EOF(byte c) : bool
+{
+    return c < 0
+}
+
+interface Stream
+{
+    func next() : byte
+    func peek() : byte
+}
+
+class FileStream (Stream)
+{
+    byte prev
+    FILE* src
+    
+    init(byte* filename)
+    {
+        self.src = fopen(filename, 'r')
+        self.prev = 0
+    }
+    
+    destruct()
+    {
+        fclose(self.src)
+    }
+    
+    func next() : byte
+    {
+        if self.prev
+        {
+            var b = self.prev
+            self.prev = 0
+            return b
+        }
+        
+        byte c = 0
+        fread(&c, 1, 1, self.src)
+        if EOF(c)
+            return 0
+        return c
+    }
+    
+    func peek() : byte
+    {
+        if !self.prev
+            self.prev = self.next()
+        return self.prev
+    }
+}
+
+class StringStream (Stream)
+{
+    byte* buffHead
+    byte* buff 
+    
+    init(byte* src)
+    {
+        self.buffHead = self.buff = strdup(src)
+    }
+    
+    destruct()
+    {
+        free(self.buffHead)
+    }
+    
+    func next() : byte
+    {
+        byte c = self.buff!
+        self.buff += 1
+        return c
+    }
+    
+    func peek() : byte
+    {
+        return self.buff!
+    }
+}
