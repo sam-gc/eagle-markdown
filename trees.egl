@@ -13,26 +13,11 @@ interface Tree
     -- Render will return an allocated buffer that
     -- should be freed by the caller
     func render(StringBuilder^)
-    
-    -- Treat tree nodes as a linked list for trees
-    -- at the same level
-    func next() : Tree^
-    func setNext(Tree^)
 }
 
 class BasicTree (Tree)
 {
     Tree^ n
-    
-    func next() : Tree^
-    {
-        return self.n
-    }
-    
-    func setNext(Tree^ n)
-    {
-        self.n = n
-    }
     
     func render(StringBuilder^ sb)
     {
@@ -48,16 +33,6 @@ class SubTree (Tree)
     init(Tree^ content)
     {
         self.content = content
-    }
-
-    func next() : Tree^
-    {
-        return self.n
-    }
-
-    func setNext(Tree^ n)
-    {
-        self.n = n
     }
 
     func render(StringBuilder^ sb)
@@ -82,27 +57,29 @@ class TextTree (Tree)
         free(self.buff)
     }
     
-    func next() : Tree^
-    {
-        return self.n
-    }
-    
-    func setNext(Tree^ n)
-    {
-        self.n = n
-    }
-    
     func render(StringBuilder^ sb)
     {
         sb.appStr(self.buff)
     }
 }
 
-class HeaderTree (Tree)
+-*class ListNodeTree (Tree)
 {
+    Tree^ n
     Tree^ content
     int level
+    
+    init(Tree^ content, int level)
+    {
+        
+    }
+}*-
+
+class HeaderTree (Tree)
+{
     Tree^ n
+    Tree^ content
+    int level
     
     init(Tree^ content, int level)
     {
@@ -122,22 +99,12 @@ class HeaderTree (Tree)
         renderTreeList(self.content, sb)
         sb.appStr(back)
     }
-    
-    func next() : Tree^
-    {
-        return self.n
-    }
-    
-    func setNext(Tree^ n)
-    {
-        self.n = n
-    }
 }
 
 class ParagraphTree (Tree)
 {
-    Tree^ content
     Tree^ n
+    Tree^ content
 
     init(Tree^ content)
     {
@@ -147,19 +114,8 @@ class ParagraphTree (Tree)
     func render(StringBuilder^ sb)
     {
         sb.appStr('<p>')
-        -- self.content.next().next().next().render(sb)
         renderTreeList(self.content, sb)
         sb.appStr('</p>\n')
-    }
-
-    func next() : Tree^
-    {
-        return self.n
-    }
-    
-    func setNext(Tree^ n)
-    {
-        self.n = n
     }
 }
 
@@ -172,9 +128,10 @@ enum FormatType
 
 class FormatTree (Tree)
 {
+    Tree^ n
     Tree^ content
     FormatType ft
-    Tree^ n
+
     
     init(Tree^ content, FormatType ft)
     {
@@ -203,24 +160,13 @@ class FormatTree (Tree)
         renderTreeList(self.content, sb)
         sb.appStr(back)
     }
-    
-    func next() : Tree^
-    {
-        return self.n
-    }
-    
-    func setNext(Tree^ n)
-    {
-        self.n = n
-    }
 }
 
 export
 func renderTreeList(Tree^ t, StringBuilder^ sb)
 {
-    for t; t; t = t.next()
+    for t; t; t = (BasicTree^@t).n
     {
         t.render(sb)
     }
 }
-

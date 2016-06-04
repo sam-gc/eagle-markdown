@@ -30,7 +30,7 @@ class Markdown
 
             if t
             {
-                curTree.setNext(t)
+                setNext(curTree, t)
                 curTree = t
             }
         }
@@ -38,6 +38,7 @@ class Markdown
     
     func parseBlock() : Tree^
     {
+        int white = self.eatLeadingWhitespace()
         switch self.stream.peek()
         {
             case `#`
@@ -60,12 +61,12 @@ class Markdown
         for !breaks_block(self.stream.peek())
         {
             var t = self.consumeText(10)
-            curTree.setNext(t)
-            t.setNext(new TextTree(' ', yes))
-            curTree = t.next()
+            setNext(curTree, t)
+            setNext(t, new TextTree(' ', yes))
+            curTree = next(t)
         }
 
-        return new ParagraphTree(headTree.next())
+        return new ParagraphTree(next(headTree))
     }
 
     func parseHeader() : Tree^
@@ -77,6 +78,14 @@ class Markdown
         }
         
         return new HeaderTree(self.consumeText(10), ct)
+    }
+    
+    func parseList(int level) : Tree^
+    {
+        self.stream.next()
+        var t = self.parseBlock()
+        
+        return nil
     }
     
     func consumeText(byte delim) : Tree^
@@ -91,14 +100,14 @@ class Markdown
             {
                 case `*`
                     var flush = new TextTree(sb.transfer(), no)
-                    curTree.setNext(flush)
+                    setNext(curTree, flush)
                     
                     Tree^ t
                     if self.stream.peek() == `*`
                         t = self.parseBold()
                     else
                         t = self.parseItalic()
-                    flush.setNext(t)
+                    setNext(flush, t)
                     curTree = t
                 default
                     sb.appByte(b)
@@ -108,9 +117,21 @@ class Markdown
         self.stream.next()
 
         if sb.preview()
-            curTree.setNext(new TextTree(sb.transfer(), no))
+            setNext(curTree, new TextTree(sb.transfer(), no))
 
-        return new SubTree(headTree.next())
+        return new SubTree(next(headTree))
+    }
+    
+    func eatLeadingWhitespace() : int
+    {
+        int i = 0
+        for self.stream.peek() == ` `
+        {
+            i += 1
+            self.stream.next()
+        }
+        
+        return i
     }
     
     func parseBold() : Tree^
@@ -130,7 +151,7 @@ class Markdown
 
 func breaks_block(byte c) : bool
 {
-    switch int@c -- TODO: This is a compiler bug
+    switch c
     {
         case 0;   fallthrough
         case `#`; fallthrough
@@ -142,3 +163,12 @@ func breaks_block(byte c) : bool
     return c >= `1` && c <= `0`
 }
 
+func next(Tree^ t) : Tree^
+{
+    return (BasicTree^@t).n
+}
+
+func setNext(Tree^ t, Tree^ n)
+{
+    (BasicTree^@t).n = n
+}
